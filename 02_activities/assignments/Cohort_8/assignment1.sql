@@ -17,8 +17,8 @@ LIMIT 10;
 
 
 --WHERE
-/* 1. Write a query that returns all customer purchases of product IDs 4 and 9. */
-SELECT *
+/* 1.Write a query that returns all customer purchases of product IDs 4 and 9. */
+SELECT*
 FROM customer_purchases
 WHERE customer_id IN (4, 9);
 

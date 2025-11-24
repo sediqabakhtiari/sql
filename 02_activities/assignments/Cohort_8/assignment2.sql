@@ -22,6 +22,11 @@ Edit the appropriate columns -- you're making two edits -- and the NULL rows wil
 All the other rows will remain the same. */
 
 
+SELECT 
+product_name || ', ' ||
+COALESCE(product_size, '') || ' (' ||
+COALESCE(product_qty_type, 'unit') || ')'
+FROM product;
 
 
 --Windowed Functions
@@ -34,18 +39,40 @@ each new market date for each customer, or select only the unique market dates p
 (without purchase details) and number those visits. 
 HINT: One of these approaches uses ROW_NUMBER() and one uses DENSE_RANK(). */
 
+select customer_id, 
+market_date,
+ROW_NUMBER () over (PARTITION by customer_id
+ORDER by market_date) as visit_nu
+
+From customer_purchases
+ORDER by customer_id, market_date;
 
 
 /* 2. Reverse the numbering of the query from a part so each customer’s most recent visit is labeled 1, 
 then write another query that uses this one as a subquery (or temp table) and filters the results to 
 only the customer’s most recent visit. */
 
+select customer_id, 
+market_date,
+ROW_NUMBER () over (PARTITION by customer_id
+ORDER by market_date DESC) as visit_nu
 
+From customer_purchases
+ORDER by customer_id, market_date;
 
 /* 3. Using a COUNT() window function, include a value along with each row of the 
 customer_purchases table that indicates how many different times that customer has purchased that product_id. */
 
-
+select
+customer_id,
+product_id, 
+market_date,
+quantity,
+count(*) over (
+	PARTITION by customer_id, product_id
+) as purchase_times
+from customer_purchases
+ORDER BY customer_id, product_id, market_date;
 
 -- String manipulations
 /* 1. Some product names in the product table have descriptions like "Jar" or "Organic". 
@@ -59,11 +86,23 @@ Remove any trailing or leading whitespaces. Don't just use a case statement for 
 
 Hint: you might need to use INSTR(product_name,'-') to find the hyphens. INSTR will help split the column. */
 
-
+SELECT product_name,
+ CASE 
+ WHEN INSTR(product_name, '-') > 0 THEN 
+ TRIM(
+SUBSTR(
+product_name,
+INSTR(product_name, '-') + 1))
+ ELSE NULL
+ END AS description
+FROM product;
 
 /* 2. Filter the query to show any product_size value that contain a number with REGEXP. */
 
 
+SELECT *
+FROM product
+WHERE product_size REGEXP '[0-9]';
 
 -- UNION
 /* 1. Using a UNION, write a query that displays the market dates with the highest and lowest total sales.
@@ -99,12 +138,20 @@ This table will contain only products where the `product_qty_type = 'unit'`.
 It should use all of the columns from the product table, as well as a new column for the `CURRENT_TIMESTAMP`.  
 Name the timestamp column `snapshot_timestamp`. */
 
+CREATE TABLE product_qty_type AS
+SELECT *,
+ CURRENT_TIMESTAMP AS snapshot_timestamp
+FROM product
+WHERE product_qty_type = 'unit';
 
 
 /*2. Using `INSERT`, add a new row to the product_units table (with an updated timestamp). 
 This can be any product you desire (e.g. add another record for Apple Pie). */
 
-
+INSERT INTO product_units 
+(product_id, product_name, product_size, product_qty_type, product_category_id, snapshot_timestamp)
+VALUES
+(10, 'Eggs', '1 dozen', 'unit', 6, CURRENT_TIMESTAMP);
 
 -- DELETE
 /* 1. Delete the older record for the whatever product you added. 
@@ -112,7 +159,13 @@ This can be any product you desire (e.g. add another record for Apple Pie). */
 HINT: If you don't specify a WHERE clause, you are going to have a bad time.*/
 
 
-
+DELETE FROM product_units
+WHERE product_name = 'Eggs'
+  AND snapshot_timestamp < (
+        SELECT MAX(snapshot_timestamp)
+		FROM product_units
+WHERE product_name = 'Eggs'
+    );
 -- UPDATE
 /* 1.We want to add the current_quantity to the product_units table. 
 First, add a new column, current_quantity to the table using the following syntax.
@@ -130,6 +183,32 @@ Finally, make sure you have a WHERE statement to update the right row,
 	you'll need to use product_units.product_id to refer to the correct row within the product_units table. 
 When you have all of these components, you can run the update statement. */
 
+ALTER TABLE product_units
+ADD current_quantity INT;
+
+SELECT 
+    product_id,
+    COALESCE(MAX(quantity), 0) AS last_quantity
+FROM vendor_inventory
+GROUP BY product_id;
+
+
+WITH last_quantity AS (
+    SELECT 
+        product_id,
+        COALESCE(MAX(quantity), 0) AS last_quantity
+    FROM vendor_inventory
+    GROUP BY product_id
+)
+UPDATE product_units
+SET current_quantity = (
+    SELECT last_quantity
+    FROM last_quantity
+    WHERE last_quantity.product_id = product_units.product_id
+)
+WHERE product_id IN (
+    SELECT product_id FROM last_quantity
+);
 
 
 

@@ -54,8 +54,14 @@ The store wants to keep customer addresses. Propose two architectures for the CU
 **HINT:** search type 1 vs type 2 slowly changing dimensions. 
 
 ```
-Your answer...
-```
+Your answer
+
+Option 1: Type 1
+In this design, the CUSTOMER_ADDRESS table stores only the recent address. When a customer moves, the existing address record is updated and the old information is removed. This is a Type 1 Slowly Changing Dimension, as previous changes are not kept.
+
+
+Option 2: Type 2 
+Here, the CUSTOMER_ADDRESS table keeps multiple address records for customers. When addresses change, a new row is added with showing if the address is still used or not. Here the past addresses are saved.
 
 ***
 
